@@ -1,0 +1,47 @@
+{
+  "enabled": {"description": "总开关", "type": "bool", "default": true},
+  "client": {"description": "IndexTTS API", "type": "object", "items": {
+    "base_url": {"description": "API 地址", "type": "string", "default": "http://127.0.0.1:8000"},
+    "api_key": {"description": "API 密钥", "type": "string", "default": ""},
+    "connect_timeout": {"description": "连接超时（秒）", "type": "float", "default": 10},
+    "request_timeout": {"description": "请求超时（秒）", "type": "float", "default": 300},
+    "max_response_mb": {"description": "最大响应（MB）", "type": "int", "default": 50}
+  }},
+  "tts": {"description": "合成默认值", "type": "object", "items": {
+    "speaker_audio": {"description": "服务器端音色参考相对路径", "type": "string", "default": ""},
+    "default_language": {"description": "默认语言", "type": "string", "options": ["ZH", "EN", "JA", "AR", "ES"], "default": "ZH"},
+    "default_emotion_weight": {"description": "默认情感权重", "type": "float", "default": 1.0},
+    "duration_factor": {"description": "时长系数", "type": "float", "default": 1.0},
+    "max_text_length": {"description": "最大文本长度", "type": "int", "default": 200}
+  }},
+  "auto": {"description": "自动回复转语音", "type": "object", "items": {
+    "enabled": {"description": "启用", "type": "bool", "default": false},
+    "only_llm_result": {"description": "仅 LLM 结果", "type": "bool", "default": true},
+    "tts_probability": {"description": "触发概率", "type": "float", "default": 0.15},
+    "max_text_length": {"description": "最大文本长度", "type": "int", "default": 100},
+    "strip_markdown": {"description": "移除 Markdown", "type": "bool", "default": true}
+  }},
+  "emotion": {"description": "情感选择", "type": "object", "items": {
+    "selection_mode": {"description": "选择方式", "type": "string", "options": ["off", "keyword", "llm"], "default": "llm"},
+    "provider_id": {"description": "情感判断 Provider", "type": "string", "default": "", "_special": "select_provider"},
+    "judge_timeout": {"description": "判断超时（秒）", "type": "float", "default": 20},
+    "fallback_to_keyword": {"description": "失败时关键词回退", "type": "bool", "default": true},
+    "entries": {"description": "情感条目", "type": "template_list", "templates": {"default": {"name": "情感", "items": {
+      "name": {"description": "名称", "type": "string", "default": "开心"},
+      "keywords": {"description": "关键词", "type": "list", "default": []},
+      "emotion_audio": {"description": "服务器端情感参考相对路径", "type": "string", "default": ""},
+      "emotion_weight": {"description": "情感权重", "type": "float", "default": 1.0}
+    }}}}
+  }},
+  "cache": {"description": "本地缓存", "type": "object", "items": {
+    "enabled": {"description": "启用", "type": "bool", "default": true},
+    "expire_hours": {"description": "过期小时数（0 为永不过期）", "type": "int", "default": 24},
+    "path": {"description": "缓存路径（留空使用插件数据目录）", "type": "string", "default": ""},
+    "max_files": {"description": "最多文件数（0 为不限）", "type": "int", "default": 500},
+    "namespace": {"description": "缓存命名空间", "type": "string", "default": "v1"}
+  }},
+  "tool": {"description": "LLM Tool", "type": "object", "items": {
+    "enabled": {"description": "启用 Tool", "type": "bool", "default": true},
+    "allow_language_argument": {"description": "允许语言参数", "type": "bool", "default": true}
+  }}
+}
