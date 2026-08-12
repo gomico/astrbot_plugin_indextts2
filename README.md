@@ -1,12 +1,12 @@
-# AstrBot IndexTTS v2.5
+# AstrBot IndexTTS 2.5
 
-本插件大量参考了 [astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)，适配 IndexTTS v2.5版本。插件连接已经启动的 [IndexTTS 2.5 FastAPI 服务](https://github.com/gomico/index-tts2-api)，不在 AstrBot 内加载模型。
+本插件大量参考了 [astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)，适配 IndexTTS 2.5。插件连接已经启动的 [IndexTTS 2.5 FastAPI 服务](https://github.com/gomico/index-tts2-api)，不在 AstrBot 内加载模型。
 
 ## 配置与首次使用
 
 1. 按 API 服务说明启动服务（默认 `http://127.0.0.1:8000`）。
-2. 默认音色参考路径为 `voices/subaru.wav`；如需更换，在插件配置中修改 `tts.speaker_audio`。
-3. `tts.speaker_audio` 和每个 `emotion.entries[].emotion_audio` 都必须填写为 **相对于 API 服务启动参数 `--reference-dir` 的路径**。
+2. 默认音色参考路径为 `voices/subaru.wav`；如需更换，在插件配置界面的`合成默认值`中修改`服务器端音色参考相对路径`（`tts.speaker_audio`）。
+3. 情感参考音频在插件配置界面的`情感选择`→`情感条目`→`服务器端情感参考相对路径`（`emotion.entries[].emotion_audio`）中设置。它与 `tts.speaker_audio` 都必须填写为 **相对于 API 服务启动参数 `--reference-dir` 的路径**。
 4. 配置情感条目后发送 `说 你好，今天真开心`；发送 `TTS情绪` 查看名称。
 
 ### 参考音频路径
@@ -46,7 +46,7 @@ emotion:
       emotion_weight: 0.8
 ```
 
-插件首次生成配置时会预置上面的“开心”情感条目。全局合成默认情感权重和新建情感条目的默认权重均为 `0.8`；可根据参考音频的表现再单独调整。
+插件首次生成配置时会预置上面的`开心`情感条目。全局合成默认情感权重和新建情感条目的默认权重均为 `0.8`；可根据参考音频的表现再单独调整。
 
 相对路径可以直接写成 `voices/subaru.wav`，也允许在开头添加 `./`，例如 `./voices/subaru.wav`。推荐始终使用正斜杠 `/`，它在 Windows 和 Linux API 服务器上都可用；反斜杠 `\` 可在 Windows API 服务器上作为目录分隔符，但在 Linux 上会被当作普通字符，因此不建议用于跨平台配置。
 
@@ -72,3 +72,9 @@ emotion:
 两个 Tool 为 `indextts_list_emotions()` 和 `indextts_tts(message, emotion, language)`。后者始终要求有效 `emotion`，缺失或无效时不会请求 API 或读写缓存。
 
 缓存使用请求内容、参考音频相对标识、语言、时长和 namespace 的 SHA-256。更换模型或覆盖同名参考文件后，请修改 `cache.namespace`。不要把 API 密钥写入日志或截图；远程 API 应配置密钥并使用 HTTPS。
+
+## 许可证
+
+本项目基于 [GNU Affero General Public License v3.0 or later](LICENSE) 发布，Copyright (C) 2026 gomico。
+
+本插件参考并改编了采用 AGPL v3 发布的 [astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)。分发修改版本或通过网络向用户提供服务时，请遵守 AGPL 的源代码提供义务。

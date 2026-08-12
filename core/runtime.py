@@ -6,7 +6,7 @@ import logging
 try:  # pragma: no cover - exercised inside AstrBot
     from astrbot.api import logger  # type: ignore
     from astrbot.api.event import filter  # type: ignore
-    from astrbot.api.star import Context, Star  # type: ignore
+    from astrbot.api.star import Context, Star, register  # type: ignore
     from astrbot.core.message.components import Plain, Record  # type: ignore
 except ImportError:  # Enables unit tests without an AstrBot installation.
     logger = logging.getLogger("astrbot_plugin_indextts2")
@@ -16,6 +16,9 @@ except ImportError:  # Enables unit tests without an AstrBot installation.
             return lambda func: func
         command = on_decorating_result = llm_tool = _decorator
     filter = _Filter()
+
+    def register(*_args, **_kwargs):
+        return lambda cls: cls
 
     class Context:  # type: ignore[no-redef]
         pass

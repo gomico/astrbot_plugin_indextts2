@@ -1,5 +1,5 @@
-# Changelog
+# 更新日志
 
 ## 1.0.0
 
-- First release: IndexTTS 2.5 HTTP client, emotion selection, cache, commands, automatic TTS and LLM tools.
+- 首次发布：提供 IndexTTS 2.5 HTTP 客户端、情感选择、缓存、手动命令、自动语音回复和 LLM Tool。

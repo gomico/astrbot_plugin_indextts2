@@ -10,12 +10,18 @@ from .core.config import LANGUAGES, PluginConfig
 from .core.emotion import EmotionJudger, _get_extra, _set_extra
 from .core.entry import EntryManager
 from .core.local_data import LocalDataManager
-from .core.runtime import Context, Record, Star, filter, logger
+from .core.runtime import Context, Record, Star, filter, logger, register
 from .core.service import IndexTTSService
 from .core.text import clean_text, plain_chain_text
 
 _SENT_KEY = "indextts2_audio_sent"
 
+@register(
+    "astrbot_plugin_indextts2",
+    "gomico",
+    "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、自动语音回复和 LLM Tool。",
+    "1.0.0",
+)
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
         super().__init__(context)
