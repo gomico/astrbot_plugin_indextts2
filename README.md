@@ -1,6 +1,6 @@
-# AstrBot IndexTTS 2.5
+# AstrBot IndexTTS v2.5
 
-本插件大量参考了 [astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)，适配 IndexTTS v2.5版本。插件连接已经启动的 IndexTTS 2.5 FastAPI 服务，不在 AstrBot 内加载模型。
+本插件大量参考了 [astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)，适配 IndexTTS v2.5版本。插件连接已经启动的 [IndexTTS 2.5 FastAPI 服务](https://github.com/gomico/index-tts2-api)，不在 AstrBot 内加载模型。
 
 ## 配置与首次使用
 
@@ -52,7 +52,20 @@ emotion:
 
 不要在配置值前重复添加 `prompts/`，也不要填写 AstrBot 主机上的绝对路径。例如 `prompts/voices/subaru.wav`、`C:\voices\subaru.wav` 和包含 `..` 的路径都是错误的。API 当前只接受 `--reference-dir` 内的 `.wav` 普通文件。
 
-命令：`说 <文本>`（别名 `itts`）、`说情绪 <情感名> <文本>`（别名 `itts_emo`）、`TTS情绪`、`TTS状态`。
+### 手动命令
+
+命令名与参数之间使用空格，多个参数之间使用两个连续的 `&`：
+
+```text
+/说 <文本>
+/说 EN&&<文本>
+/说情绪 开心&&<文本>
+/说情绪 EN&&开心&&<文本>
+```
+
+`/说 <文本>` 会使用同一次 LLM 调用判断语言和情感；显式提供语言时只自动判断情感。`/说情绪 开心&&<文本>` 使用指定情感并由 LLM 判断语言；同时指定语言和情感时不调用分类 LLM。支持的语言代码为 `ZH/EN/JA/AR/ES`，判断失败时回退到 `tts.default_language`。
+
+空格分隔的旧多参数写法不再支持。命令别名为 `itts` 和 `itts_emo`，其他命令为 `TTS情绪`、`TTS状态`。
 
 自动模式只替换完全由 Plain 文本组成的 LLM 回复。概率、长度和文本适读性在调用情感模型之前检查；失败时保留原文本。关键词命中按配置条目顺序优先。`selection_mode=llm` 时要求模型严格返回一个已配置的 JSON 标签，失败后可按 `fallback_to_keyword` 回退。
 

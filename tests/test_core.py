@@ -66,6 +66,31 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             selected = await EmotionJudger(ctx, cfg.emotion, entries).select(Event(), "真开心")
             self.assertEqual(selected.name, "开心")
 
+    async def test_combined_language_emotion_partial_fallbacks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = config(Path(tmp)); entries = EntryManager(cfg.emotion)
+            language_ok = EmotionJudger(Context(Result('{"language":"EN","emotion":"不存在"}')), cfg.emotion, entries)
+            language, emotion = await language_ok.select_with_language(Event(), "真开心")
+            self.assertEqual(language, "EN")
+            self.assertEqual(emotion.name, "开心")
+
+            emotion_ok = EmotionJudger(Context(Result('{"language":"KO","emotion":"悲伤"}')), cfg.emotion, entries)
+            language, emotion = await emotion_ok.select_with_language(Event(), "任意文本")
+            self.assertIsNone(language)
+            self.assertEqual(emotion.name, "悲伤")
+
+    async def test_keyword_and_off_modes_only_ask_llm_for_language(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = config(Path(tmp)); entries = EntryManager(cfg.emotion)
+            for mode, expected_emotion in (("keyword", "开心"), ("off", None)):
+                with self.subTest(mode=mode):
+                    context = Context(Result('{"language":"EN"}'))
+                    judger = EmotionJudger(context, replace(cfg.emotion, selection_mode=mode), entries)
+                    language, emotion = await judger.select_with_language(Event(), "真开心")
+                    self.assertEqual(language, "EN")
+                    self.assertEqual(emotion.name if emotion else None, expected_emotion)
+                    self.assertEqual(context.calls, 1)
+
     async def test_llm_timeout_and_disabled_fallback(self):
         class SlowContext:
             async def llm_generate(self, **kwargs):

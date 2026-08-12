@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Mapping
 
 from .core.client import IndexTTSClient, TTSResult
-from .core.config import PluginConfig
+from .core.config import LANGUAGES, PluginConfig
 from .core.emotion import EmotionJudger, _get_extra, _set_extra
 from .core.entry import EntryManager
 from .core.local_data import LocalDataManager
@@ -56,6 +56,10 @@ class IndexTTSPlugin(Star):
     async def _automatic_emotion(self, event: Any, text: str):
         return await self.judger.select(event, text)
 
+    def _language_error(self, language: str) -> str:
+        allowed = "/".join(sorted(LANGUAGES))
+        return f"语言代码 {language or '（空）'} 无效。支持：{allowed}。"
+
     @staticmethod
     def _command_text(event: Any) -> str:
         value = str(getattr(event, "message_str", ""))
@@ -63,28 +67,52 @@ class IndexTTSPlugin(Star):
 
     @filter.command("说", alias={"itts", "ITTS"})
     async def say(self, event: Any) -> AsyncGenerator[Any, None]:
-        """说 <文本>：按当前情感选择模式合成语音。"""
+        """说 <文本> 或 说 <语言>&&<文本>。"""
         if not self.cfg.enabled:
             yield event.plain_result("IndexTTS 插件未启用")
             return
-        text = self._command_text(event)
-        emotion = await self._automatic_emotion(event, text)
-        result = await self.service.synthesize(text, emotion=emotion)
+        raw = self._command_text(event)
+        parts = [part.strip() for part in raw.split("&&")]
+        if len(parts) == 1:
+            text = parts[0]
+            language, emotion = await self.judger.select_with_language(event, text) if text else (None, None)
+            language = language or self.cfg.tts.default_language
+        elif len(parts) == 2:
+            language, text = parts
+            if language not in LANGUAGES:
+                yield event.plain_result(self._language_error(language)); return
+            emotion = await self._automatic_emotion(event, text) if text else None
+        else:
+            yield event.plain_result("用法：说 <文本> 或 说 <语言>&&<文本>"); return
+        if not text:
+            yield event.plain_result("用法：说 <文本> 或 说 <语言>&&<文本>"); return
+        result = await self.service.synthesize(text, emotion=emotion, language=language)
         if not result: yield event.plain_result(result.error); return
         yield event.chain_result([self._record(result)])
 
     @filter.command("说情绪", alias={"itts_emo"})
     async def say_emotion(self, event: Any) -> AsyncGenerator[Any, None]:
-        """说情绪 <情感名> <文本>：显式指定一个已配置的情感。"""
+        """说情绪 <情感>&&<文本> 或 说情绪 <语言>&&<情感>&&<文本>。"""
         if not self.cfg.enabled:
             yield event.plain_result("IndexTTS 插件未启用"); return
-        tokens = self._command_text(event).split(maxsplit=1)
-        if len(tokens) != 2:
-            yield event.plain_result("用法：说情绪 <情感名> <文本>"); return
-        emotion = self.entries.get_entry(tokens[0])
+        parts = [part.strip() for part in self._command_text(event).split("&&")]
+        if len(parts) == 2:
+            emotion_name, text = parts
+            language = None
+        elif len(parts) == 3:
+            language, emotion_name, text = parts
+            if language not in LANGUAGES:
+                yield event.plain_result(self._language_error(language)); return
+        else:
+            yield event.plain_result("用法：说情绪 <情感>&&<文本> 或 说情绪 <语言>&&<情感>&&<文本>"); return
+        if not emotion_name or not text:
+            yield event.plain_result("用法：说情绪 <情感>&&<文本> 或 说情绪 <语言>&&<情感>&&<文本>"); return
+        emotion = self.entries.get_entry(emotion_name)
         if not emotion:
             yield event.plain_result(self._emotion_help("情感不存在")); return
-        result = await self.service.synthesize(tokens[1], emotion=emotion)
+        if language is None:
+            language = await self.judger.detect_language(event, text) or self.cfg.tts.default_language
+        result = await self.service.synthesize(text, emotion=emotion, language=language)
         if not result: yield event.plain_result(result.error); return
         yield event.chain_result([self._record(result)])
 

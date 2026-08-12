@@ -23,8 +23,8 @@
   }},
   "emotion": {"description": "情感选择", "type": "object", "items": {
     "selection_mode": {"description": "选择方式", "type": "string", "options": ["off", "keyword", "llm"], "default": "llm"},
-    "provider_id": {"description": "情感判断 Provider", "type": "string", "default": "", "_special": "select_provider"},
-    "judge_timeout": {"description": "判断超时（秒）", "type": "float", "default": 20},
+    "provider_id": {"description": "语言/情感判断 Provider", "type": "string", "default": "", "_special": "select_provider"},
+    "judge_timeout": {"description": "语言/情感判断超时（秒）", "type": "float", "default": 20},
     "fallback_to_keyword": {"description": "失败时关键词回退", "type": "bool", "default": true},
     "entries": {"description": "情感条目", "type": "template_list", "default": [
       {"name": "开心", "keywords": ["开心", "哈哈", "太棒了"], "emotion_audio": "emotions/subaru_happy.wav", "emotion_weight": 0.8}
