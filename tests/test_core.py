@@ -42,6 +42,16 @@ class Client:
     async def tts(self, payload): self.payloads.append(payload); return TTSResult(True, b"RIFFxxxxWAVE")
 
 class CoreTests(unittest.IsolatedAsyncioTestCase):
+    async def test_default_subaru_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = PluginConfig.from_mapping(None, data_dir=Path(tmp))
+            self.assertEqual(cfg.tts.speaker_audio, "voices/subaru.wav")
+            self.assertEqual(cfg.tts.default_emotion_weight, .8)
+            entry = EntryManager(cfg.emotion).get_entry("开心")
+            self.assertIsNotNone(entry)
+            self.assertEqual(entry.emotion_audio, "emotions/subaru_happy.wav")
+            self.assertEqual(entry.emotion_weight, .8)
+
     async def test_llm_json_and_event_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = config(Path(tmp)); entries = EntryManager(cfg.emotion); ctx = Context(Result('{"emotion":"开心"}'))

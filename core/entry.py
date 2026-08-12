@@ -18,7 +18,7 @@ class EmotionEntry:
 class EntryManager:
     """Configured entries; configuration order wins when keywords overlap."""
     def __init__(self, cfg: EmotionConfig):
-        self.entries = [EmotionEntry(str(x["name"]).strip(), tuple(str(k).strip() for k in x.get("keywords", []) if str(k).strip()), str(x["emotion_audio"]).strip(), float(x.get("emotion_weight", 1))) for x in cfg.entries]
+        self.entries = [EmotionEntry(str(x["name"]).strip(), tuple(str(k).strip() for k in x.get("keywords", []) if str(k).strip()), str(x["emotion_audio"]).strip(), float(x.get("emotion_weight", .8))) for x in cfg.entries]
         self._by_name = {entry.name: entry for entry in self.entries}
 
     def get_names(self) -> list[str]: return [entry.name for entry in self.entries]

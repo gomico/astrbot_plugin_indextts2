@@ -1,13 +1,56 @@
 # AstrBot IndexTTS 2.5
 
-该插件连接已经启动的 IndexTTS 2.5 FastAPI 服务，不在 AstrBot 内加载模型。
+本插件大量参考了 [astrbot_plugin_GPT_SoVITS](https://github.com/Zhalslar/astrbot_plugin_GPT_SoVITS)，适配 IndexTTS v2.5版本。插件连接已经启动的 IndexTTS 2.5 FastAPI 服务，不在 AstrBot 内加载模型。
 
 ## 配置与首次使用
 
 1. 按 API 服务说明启动服务（默认 `http://127.0.0.1:8000`）。
-2. 在插件配置中填写 `tts.speaker_audio`，例如 `voices/character_neutral.wav`。
-3. 该字段和每个 `emotion.entries[].emotion_audio` 都是 **API 服务器 `reference-dir` 下的相对路径**；插件不会也不能在 AstrBot 主机检查或转换它们。
+2. 默认音色参考路径为 `voices/subaru.wav`；如需更换，在插件配置中修改 `tts.speaker_audio`。
+3. `tts.speaker_audio` 和每个 `emotion.entries[].emotion_audio` 都必须填写为 **相对于 API 服务启动参数 `--reference-dir` 的路径**。
 4. 配置情感条目后发送 `说 你好，今天真开心`；发送 `TTS情绪` 查看名称。
+
+### 参考音频路径
+
+参考音频位于运行 IndexTTS API 的服务器上，而不是 AstrBot 所在主机上。插件只会把配置的路径原样发送给 API，不会在本地查找、转换或上传音频。
+
+例如 API 在 IndexTTS 项目根目录这样启动：
+
+```powershell
+.\run_api.ps1 --reference-dir prompts
+```
+
+服务器端目录为：
+
+```text
+prompts/
+├── voices/
+│   └── subaru.wav
+└── emotions/
+    └── subaru_happy.wav
+```
+
+对应的插件配置应为：
+
+```yaml
+tts:
+  speaker_audio: voices/subaru.wav
+  default_emotion_weight: 0.8
+
+emotion:
+  entries:
+    - name: 开心
+      keywords:
+        - 开心
+        - 哈哈
+      emotion_audio: emotions/subaru_happy.wav
+      emotion_weight: 0.8
+```
+
+插件首次生成配置时会预置上面的“开心”情感条目。全局合成默认情感权重和新建情感条目的默认权重均为 `0.8`；可根据参考音频的表现再单独调整。
+
+相对路径可以直接写成 `voices/subaru.wav`，也允许在开头添加 `./`，例如 `./voices/subaru.wav`。推荐始终使用正斜杠 `/`，它在 Windows 和 Linux API 服务器上都可用；反斜杠 `\` 可在 Windows API 服务器上作为目录分隔符，但在 Linux 上会被当作普通字符，因此不建议用于跨平台配置。
+
+不要在配置值前重复添加 `prompts/`，也不要填写 AstrBot 主机上的绝对路径。例如 `prompts/voices/subaru.wav`、`C:\voices\subaru.wav` 和包含 `..` 的路径都是错误的。API 当前只接受 `--reference-dir` 内的 `.wav` 普通文件。
 
 命令：`说 <文本>`（别名 `itts`）、`说情绪 <情感名> <文本>`（别名 `itts_emo`）、`TTS情绪`、`TTS状态`。
 

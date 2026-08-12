@@ -8,9 +8,9 @@
     "max_response_mb": {"description": "最大响应（MB）", "type": "int", "default": 50}
   }},
   "tts": {"description": "合成默认值", "type": "object", "items": {
-    "speaker_audio": {"description": "服务器端音色参考相对路径", "type": "string", "default": ""},
+    "speaker_audio": {"description": "服务器端音色参考相对路径", "type": "string", "default": "voices/subaru.wav"},
     "default_language": {"description": "默认语言", "type": "string", "options": ["ZH", "EN", "JA", "AR", "ES"], "default": "ZH"},
-    "default_emotion_weight": {"description": "默认情感权重", "type": "float", "default": 1.0},
+    "default_emotion_weight": {"description": "默认情感权重", "type": "float", "default": 0.8},
     "duration_factor": {"description": "时长系数", "type": "float", "default": 1.0},
     "max_text_length": {"description": "最大文本长度", "type": "int", "default": 200}
   }},
@@ -26,11 +26,13 @@
     "provider_id": {"description": "情感判断 Provider", "type": "string", "default": "", "_special": "select_provider"},
     "judge_timeout": {"description": "判断超时（秒）", "type": "float", "default": 20},
     "fallback_to_keyword": {"description": "失败时关键词回退", "type": "bool", "default": true},
-    "entries": {"description": "情感条目", "type": "template_list", "templates": {"default": {"name": "情感", "items": {
-      "name": {"description": "名称", "type": "string", "default": "开心"},
+    "entries": {"description": "情感条目", "type": "template_list", "default": [
+      {"name": "开心", "keywords": ["开心", "哈哈", "太棒了"], "emotion_audio": "emotions/subaru_happy.wav", "emotion_weight": 0.8}
+    ], "templates": {"default": {"name": "情感", "items": {
+      "name": {"description": "名称", "type": "string", "default": "请输入情感名"},
       "keywords": {"description": "关键词", "type": "list", "default": []},
       "emotion_audio": {"description": "服务器端情感参考相对路径", "type": "string", "default": ""},
-      "emotion_weight": {"description": "情感权重", "type": "float", "default": 1.0}
+      "emotion_weight": {"description": "情感权重", "type": "float", "default": 0.8}
     }}}}
   }},
   "cache": {"description": "本地缓存", "type": "object", "items": {

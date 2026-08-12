@@ -13,9 +13,11 @@ LANGUAGES = {"ZH", "EN", "JA", "AR", "ES"}
 DEFAULTS: dict[str, Any] = {
     "enabled": True,
     "client": {"base_url": "http://127.0.0.1:8000", "api_key": "", "connect_timeout": 10.0, "request_timeout": 300.0, "max_response_mb": 50},
-    "tts": {"speaker_audio": "", "default_language": "ZH", "default_emotion_weight": 1.0, "duration_factor": 1.0, "max_text_length": 200},
+    "tts": {"speaker_audio": "voices/subaru.wav", "default_language": "ZH", "default_emotion_weight": .8, "duration_factor": 1.0, "max_text_length": 200},
     "auto": {"enabled": False, "only_llm_result": True, "tts_probability": .15, "max_text_length": 100, "strip_markdown": True},
-    "emotion": {"selection_mode": "llm", "provider_id": "", "judge_timeout": 20.0, "fallback_to_keyword": True, "entries": []},
+    "emotion": {"selection_mode": "llm", "provider_id": "", "judge_timeout": 20.0, "fallback_to_keyword": True, "entries": [
+        {"name": "开心", "keywords": ["开心", "哈哈", "太棒了"], "emotion_audio": "emotions/subaru_happy.wav", "emotion_weight": .8},
+    ]},
     "cache": {"enabled": True, "expire_hours": 24, "path": "", "max_files": 500, "namespace": "v1"},
     "tool": {"enabled": True, "allow_language_argument": True},
 }
@@ -86,7 +88,7 @@ class PluginConfig:
             name = str(entry.get("name", "")).strip()
             if not name or name in names: raise ValueError("情感名称必须非空且唯一")
             if not str(entry.get("emotion_audio", "")).strip(): raise ValueError(f"情感 {name} 缺少 emotion_audio")
-            if not 0 <= float(entry.get("emotion_weight", 1)) <= 1: raise ValueError(f"情感 {name} 的权重非法")
+            if not 0 <= float(entry.get("emotion_weight", .8)) <= 1: raise ValueError(f"情感 {name} 的权重非法")
             names.add(name)
         root = data_dir or Path("data/plugins_data/astrbot_plugin_indextts2")
         root.mkdir(parents=True, exist_ok=True)
