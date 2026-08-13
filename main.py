@@ -20,7 +20,7 @@ _SENT_KEY = "indextts2_audio_sent"
     "astrbot_plugin_indextts2",
     "gomico",
     "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
-    "1.1.0",
+    "1.1.1",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
