@@ -11,6 +11,7 @@ Root metadata files (`metadata.yaml`, `requirements.txt`, `README.md`, and `LICE
 - `python -m compileall -q .` checks all Python modules.
 - `python -m unittest discover -s tests -v` runs the complete model-free suite.
 - `python -m json.tool _conf_schema.json > NUL` validates the schema on Windows.
+- `python -m json.tool _conf_schema.json >/dev/null` validates the schema on Linux/macOS.
 - Install runtime dependencies with `python -m pip install -r requirements.txt` when testing inside AstrBot.
 
 Real API and AstrBot end-to-end checks are manual; unit tests use compatibility stubs and fake clients.

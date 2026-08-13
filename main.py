@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Mapping
 
 from .core.client import IndexTTSClient, TTSResult
-from .core.config import LANGUAGES, PluginConfig
+from .core.config import LANGUAGES, PluginConfig, migrate_template_keys
 from .core.emotion import EmotionJudger, _get_extra, _set_extra
 from .core.entry import EntryManager
 from .core.local_data import LocalDataManager
@@ -19,12 +19,19 @@ _SENT_KEY = "indextts2_audio_sent"
 @register(
     "astrbot_plugin_indextts2",
     "gomico",
-    "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、自动语音回复和 LLM Tool。",
-    "1.0.0",
+    "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
+    "1.1.0",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
         super().__init__(context)
+        if migrate_template_keys(config):
+            save_config = getattr(config, "save_config", None)
+            if callable(save_config):
+                try:
+                    save_config()
+                except Exception as exc:  # pragma: no cover - AstrBot runtime
+                    logger.warning("情感条目模板标识自动修复保存失败：%s", exc)
         data_dir = self._data_dir()
         self.cfg = PluginConfig.from_mapping(config, data_dir=data_dir)
         self.entries = EntryManager(self.cfg.emotion)

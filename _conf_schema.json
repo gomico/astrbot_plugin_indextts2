@@ -22,17 +22,36 @@
     "strip_markdown": {"description": "移除 Markdown", "type": "bool", "default": true}
   }},
   "emotion": {"description": "情感选择", "type": "object", "items": {
+    "control_mode": {"description": "控制模式（参考音频控制 / 向量控制）", "type": "string", "options": ["reference_audio", "vector"], "default": "reference_audio"},
     "selection_mode": {"description": "选择方式", "type": "string", "options": ["off", "keyword", "llm"], "default": "llm"},
     "provider_id": {"description": "语言/情感判断 Provider", "type": "string", "default": "", "_special": "select_provider"},
     "judge_timeout": {"description": "语言/情感判断超时（秒）", "type": "float", "default": 20},
     "fallback_to_keyword": {"description": "失败时关键词回退", "type": "bool", "default": true},
-    "entries": {"description": "情感条目", "type": "template_list", "default": [
-      {"name": "开心", "keywords": ["开心", "哈哈", "太棒了"], "emotion_audio": "emotions/subaru_happy.wav", "emotion_weight": 0.8}
-    ], "templates": {"default": {"name": "情感", "items": {
+    "entries": {"description": "参考音频情感条目", "type": "template_list", "condition": {"control_mode": "reference_audio"}, "default": [
+      {"__template_key": "default", "name": "开心", "keywords": ["开心", "哈哈", "太棒了"], "emotion_audio": "emotions/subaru_happy.wav", "emotion_weight": 0.8}
+    ], "templates": {"default": {"name": "参考音频情感", "items": {
       "name": {"description": "名称", "type": "string", "default": "请输入情感名"},
       "keywords": {"description": "关键词", "type": "list", "default": []},
       "emotion_audio": {"description": "服务器端情感参考相对路径", "type": "string", "default": ""},
-      "emotion_weight": {"description": "情感权重", "type": "float", "default": 0.8}
+      "emotion_weight": {"description": "情感权重", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.8}
+    }}}},
+    "vector_entries": {"description": "向量情感条目", "type": "template_list", "condition": {"control_mode": "vector"}, "default": [
+      {"__template_key": "default", "name": "开心", "keywords": ["开心", "哈哈", "太棒了"], "emotion_weight": 0.8, "happy": 0.6, "angry": 0.0, "sad": 0.0, "afraid": 0.0, "disgusted": 0.0, "melancholic": 0.0, "surprised": 0.2, "calm": 0.0},
+      {"__template_key": "default", "name": "平静", "keywords": ["平静"], "emotion_weight": 0.8, "happy": 0.05, "angry": 0.0, "sad": 0.05, "afraid": 0.0, "disgusted": 0.0, "melancholic": 0.1, "surprised": 0.0, "calm": 0.6},
+      {"__template_key": "default", "name": "紧张", "keywords": ["紧张"], "emotion_weight": 0.8, "happy": 0.0, "angry": 0.35, "sad": 0.0, "afraid": 0.2, "disgusted": 0.0, "melancholic": 0.0, "surprised": 0.25, "calm": 0.0},
+      {"__template_key": "default", "name": "难过", "keywords": ["难过"], "emotion_weight": 0.8, "happy": 0.0, "angry": 0.0, "sad": 0.45, "afraid": 0.0, "disgusted": 0.0, "melancholic": 0.25, "surprised": 0.0, "calm": 0.1}
+    ], "templates": {"default": {"name": "向量情感", "items": {
+      "name": {"description": "名称", "type": "string", "default": "请输入情感名"},
+      "keywords": {"description": "关键词", "type": "list", "default": []},
+      "emotion_weight": {"description": "情感权重", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.8},
+      "happy": {"description": "喜", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "angry": {"description": "怒", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "sad": {"description": "哀", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "afraid": {"description": "惧", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "disgusted": {"description": "厌恶", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "melancholic": {"description": "低落", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "surprised": {"description": "惊喜", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0},
+      "calm": {"description": "平静", "type": "float", "min": 0, "max": 1, "step": 0.05, "default": 0.0}
     }}}}
   }},
   "cache": {"description": "本地缓存", "type": "object", "items": {

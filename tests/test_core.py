@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import tempfile
@@ -12,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from astrbot_plugin_indextts2.core.client import TTSResult
-from astrbot_plugin_indextts2.core.config import PluginConfig
+from astrbot_plugin_indextts2.core.config import DEFAULTS, EMOTION_VECTOR_DIMENSIONS, PluginConfig, migrate_template_keys
 from astrbot_plugin_indextts2.core.emotion import EmotionJudger
 from astrbot_plugin_indextts2.core.entry import EntryManager
 from astrbot_plugin_indextts2.core.local_data import LocalDataManager
@@ -42,15 +43,48 @@ class Client:
     async def tts(self, payload): self.payloads.append(payload); return TTSResult(True, b"RIFFxxxxWAVE")
 
 class CoreTests(unittest.IsolatedAsyncioTestCase):
+    def test_migrate_legacy_template_keys(self):
+        config = {"emotion": {"entries": [{"name": "开心"}], "vector_entries": [{"name": "平静"}, {"__template_key": "default"}]}}
+        self.assertTrue(migrate_template_keys(config))
+        self.assertEqual(config["emotion"]["entries"][0]["__template_key"], "default")
+        self.assertEqual(config["emotion"]["vector_entries"][0]["__template_key"], "default")
+        self.assertFalse(migrate_template_keys(config))
+
     async def test_default_subaru_profile(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = PluginConfig.from_mapping(None, data_dir=Path(tmp))
             self.assertEqual(cfg.tts.speaker_audio, "voices/subaru.wav")
             self.assertEqual(cfg.tts.default_emotion_weight, .8)
+            self.assertEqual(cfg.emotion.control_mode, "reference_audio")
             entry = EntryManager(cfg.emotion).get_entry("开心")
             self.assertIsNotNone(entry)
             self.assertEqual(entry.emotion_audio, "emotions/subaru_happy.wav")
             self.assertEqual(entry.emotion_weight, .8)
+
+    async def test_default_vector_presets_keep_names_and_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = PluginConfig.from_mapping(None, data_dir=Path(tmp))
+            vector_cfg = replace(cfg.emotion, control_mode="vector")
+            entries = EntryManager(vector_cfg)
+            self.assertEqual(entries.get_names(), ["开心", "平静", "紧张", "难过"])
+            self.assertEqual(entries.get_entry("开心").to_params()["emotion_vector"], [.6, 0, 0, 0, 0, 0, .2, 0])
+            self.assertEqual(entries.get_entry("平静").to_params()["emotion_vector"], [.05, 0, .05, 0, 0, .1, 0, .6])
+            self.assertEqual(entries.get_entry("紧张").to_params()["emotion_vector"], [0, .35, 0, .2, 0, 0, .25, 0])
+            self.assertEqual(entries.get_entry("难过").to_params()["emotion_vector"], [0, 0, .45, 0, 0, .25, 0, .1])
+            self.assertEqual(tuple(EMOTION_VECTOR_DIMENSIONS), ("happy", "angry", "sad", "afraid", "disgusted", "melancholic", "surprised", "calm"))
+
+    def test_default_vector_presets_match_schema(self):
+        schema_path = Path(__file__).resolve().parents[1] / "_conf_schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        core_entries = DEFAULTS["emotion"]["vector_entries"]
+        schema_entries = schema["emotion"]["items"]["vector_entries"]["default"]
+        self.assertEqual([entry["name"] for entry in core_entries], [entry["name"] for entry in schema_entries])
+        for core_entry, schema_entry in zip(core_entries, schema_entries):
+            self.assertEqual(core_entry["emotion_weight"], schema_entry["emotion_weight"])
+            self.assertEqual(
+                [core_entry[dimension] for dimension in EMOTION_VECTOR_DIMENSIONS],
+                [schema_entry[dimension] for dimension in EMOTION_VECTOR_DIMENSIONS],
+            )
 
     async def test_llm_json_and_event_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -112,6 +146,22 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("emotion_audio", client.payloads[0])
             self.assertEqual((await service.synthesize("x", language="BAD")).error_code, "invalid_language")
 
+    async def test_vector_mode_payload_and_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = PluginConfig.from_mapping({"emotion": {"control_mode": "vector", "vector_entries": [{
+                "name": "开心", "keywords": ["开心"], "emotion_weight": .8,
+                "happy": .8, "angry": 0, "sad": 0, "afraid": 0,
+                "disgusted": 0, "melancholic": 0, "surprised": 0, "calm": 0,
+            }]}}, data_dir=Path(tmp))
+            entry = EntryManager(cfg.emotion).get_entry("开心")
+            self.assertEqual(entry.to_params(), {"emotion_vector": [.8, 0, 0, 0, 0, 0, 0, 0], "emotion_weight": .8})
+            client = Client(); service = IndexTTSService(cfg, client, LocalDataManager(cfg.cache, cfg.audio_dir))
+            self.assertTrue(await service.synthesize("你好", emotion=entry))
+            self.assertTrue(await service.synthesize("你好", emotion=entry))
+            self.assertEqual(len(client.payloads), 1)
+            self.assertNotIn("emotion_audio", client.payloads[0])
+            self.assertEqual(client.payloads[0]["emotion_vector"], [.8, 0, 0, 0, 0, 0, 0, 0])
+
     async def test_cache_namespace_and_empty_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = config(Path(tmp)); cache = LocalDataManager(cfg.cache, cfg.audio_dir); payload = {"text": "x"}
@@ -141,6 +191,10 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
                 PluginConfig.from_mapping({"client": {"base_url": "not a url"}}, data_dir=Path(tmp))
             with self.assertRaises(ValueError):
                 PluginConfig.from_mapping({"tts": {"default_language": "KO"}}, data_dir=Path(tmp))
+            with self.assertRaises(ValueError):
+                PluginConfig.from_mapping({"emotion": {"control_mode": "bad"}}, data_dir=Path(tmp))
+            with self.assertRaises(ValueError):
+                PluginConfig.from_mapping({"emotion": {"vector_entries": [{"name": "坏", "happy": 2}]}}, data_dir=Path(tmp))
 
     async def test_tool_emotion_contract(self):
         # Covered by service-level short circuit: invalid tool emotion must not call it.
