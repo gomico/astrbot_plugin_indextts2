@@ -20,7 +20,7 @@ _SENT_KEY = "indextts2_audio_sent"
     "astrbot_plugin_indextts2",
     "gomico",
     "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
-    "1.1.1",
+    "1.2.0",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
@@ -144,11 +144,11 @@ class IndexTTSPlugin(Star):
         result = event.get_result() if hasattr(event, "get_result") else None
         if not result or not getattr(result, "chain", None): return
         if self.cfg.auto.only_llm_result and not result.is_llm_result(): return
-        if random.random() > self.cfg.auto.tts_probability: return
         text = plain_chain_text(result.chain)
         if text is None: return
         text = clean_text(text, strip_markdown=self.cfg.auto.strip_markdown)
-        if not text or len(text) > self.cfg.auto.max_text_length: return
+        if not text or len(text) < self.cfg.auto.min_text_length or len(text) > self.cfg.auto.max_text_length: return
+        if random.random() > self.cfg.auto.tts_probability: return
         emotion = await self._automatic_emotion(event, text)
         synthesized = await self.service.synthesize(text, emotion=emotion, max_length=self.cfg.auto.max_text_length)
         if not synthesized: return

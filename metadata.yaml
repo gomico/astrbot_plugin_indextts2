@@ -2,6 +2,6 @@ name: astrbot_plugin_indextts2
 display_name: IndexTTS 2.5
 desc: 通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。
 help: 使用“说 <文本>”合成语音；使用“TTS情绪”查看可用情感。
-version: 1.1.1
+version: 1.2.0
 author: gomico
 repo: https://github.com/gomico/astrbot_plugin_indextts2

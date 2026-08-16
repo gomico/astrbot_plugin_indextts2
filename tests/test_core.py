@@ -54,6 +54,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = PluginConfig.from_mapping(None, data_dir=Path(tmp))
             self.assertEqual(cfg.tts.speaker_audio, "voices/subaru.wav")
+            self.assertEqual(cfg.auto.min_text_length, 5)
             self.assertEqual(cfg.tts.default_emotion_weight, .8)
             self.assertEqual(cfg.emotion.control_mode, "reference_audio")
             entry = EntryManager(cfg.emotion).get_entry("开心")

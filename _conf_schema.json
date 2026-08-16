@@ -18,6 +18,7 @@
     "enabled": {"description": "启用", "type": "bool", "default": false},
     "only_llm_result": {"description": "仅 LLM 结果", "type": "bool", "default": true},
     "tts_probability": {"description": "触发概率", "type": "float", "default": 0.15},
+    "min_text_length": {"description": "最小文本长度", "type": "int", "default": 5},
     "max_text_length": {"description": "最大文本长度", "type": "int", "default": 100},
     "strip_markdown": {"description": "移除 Markdown", "type": "bool", "default": true}
   }},

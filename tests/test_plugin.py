@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from astrbot_plugin_indextts2.main import IndexTTSPlugin
 from astrbot_plugin_indextts2.core.client import TTSResult
+from astrbot_plugin_indextts2.core.runtime import Plain
 
 class Context:
     def __init__(self, response='{"emotion":"开心"}'):
@@ -26,6 +27,14 @@ class Event:
     def plain_result(self, text): return text
     async def send(self, value): self.sent.append(value)
 
+class DecoratingResult:
+    def __init__(self, text): self.chain = [Plain(text)]
+    def is_llm_result(self): return True
+
+class DecoratingEvent(Event):
+    def __init__(self, result): super().__init__(); self.result = result
+    def get_result(self): return self.result
+
 async def collect(generator):
     return [item async for item in generator]
 
@@ -38,6 +47,29 @@ def capture_synthesis(plugin):
     return calls
 
 class PluginTests(unittest.IsolatedAsyncioTestCase):
+    async def test_manual_commands_and_tool_ignore_auto_minimum(self):
+        context = Context('{"emotion":"开心"}')
+        plugin = IndexTTSPlugin(context, {})
+        calls = capture_synthesis(plugin)
+
+        await collect(plugin.say(Event("/说 好")))
+        await collect(plugin.say_emotion(Event("/说情绪 EN&&开心&&hi")))
+        self.assertEqual([call[0] for call in calls], ["好", "hi"])
+
+        tool_result = await plugin.indextts_tts(Event(), "hi", "开心")
+        self.assertEqual(tool_result, "语音已发送")
+        self.assertEqual([call[0] for call in calls], ["好", "hi", "hi"])
+
+    async def test_auto_tts_skips_text_shorter_than_minimum(self):
+        context = Context()
+        plugin = IndexTTSPlugin(context, {"auto": {"enabled": True, "tts_probability": 1, "min_text_length": 3}})
+        calls = capture_synthesis(plugin)
+        event = DecoratingEvent(DecoratingResult("两字"))
+        await plugin.on_decorating_result(event)
+        self.assertFalse(calls)
+        self.assertEqual(context.calls, 0)
+        self.assertEqual(event.result.chain[0].text, "两字")
+
     async def test_tool_rejects_missing_or_unknown_emotion_without_api(self):
         with tempfile.TemporaryDirectory() as tmp:
             plugin = IndexTTSPlugin(Context(), {"tts": {"speaker_audio": "voices/n.wav"}, "emotion": {"entries": [{"name": "开心", "emotion_audio": "emotions/h.wav"}]}})

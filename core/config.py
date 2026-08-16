@@ -18,7 +18,7 @@ DEFAULTS: dict[str, Any] = {
     "enabled": True,
     "client": {"base_url": "http://127.0.0.1:8000", "api_key": "", "connect_timeout": 10.0, "request_timeout": 300.0, "max_response_mb": 50},
     "tts": {"speaker_audio": "voices/subaru.wav", "default_language": "ZH", "default_emotion_weight": .8, "duration_factor": 1.0, "max_text_length": 200},
-    "auto": {"enabled": False, "only_llm_result": True, "tts_probability": .15, "max_text_length": 100, "strip_markdown": True},
+    "auto": {"enabled": False, "only_llm_result": True, "tts_probability": .15, "min_text_length": 5, "max_text_length": 100, "strip_markdown": True},
     "emotion": {
         "control_mode": "reference_audio",
         "selection_mode": "llm",
@@ -76,7 +76,7 @@ class TTSConfig:
 
 @dataclass(frozen=True)
 class AutoConfig:
-    enabled: bool; only_llm_result: bool; tts_probability: float; max_text_length: int; strip_markdown: bool
+    enabled: bool; only_llm_result: bool; tts_probability: float; min_text_length: int; max_text_length: int; strip_markdown: bool
 
 @dataclass(frozen=True)
 class EmotionConfig:
@@ -119,6 +119,7 @@ class PluginConfig:
         control_mode = str(e.get("control_mode", "reference_audio"))
         if control_mode not in {"reference_audio", "vector"}: raise ValueError("emotion.control_mode 非法")
         if not 0 <= float(a["tts_probability"]) <= 1: raise ValueError("auto.tts_probability 必须在 0-1")
+        if int(a["min_text_length"]) < 1: raise ValueError("auto.min_text_length 必须大于 0")
         if int(a["max_text_length"]) < 1: raise ValueError("auto.max_text_length 必须大于 0")
         if float(c["connect_timeout"]) <= 0 or float(c["request_timeout"]) <= 0 or int(c["max_response_mb"]) < 1: raise ValueError("client 超时或响应限制非法")
         if float(e["judge_timeout"]) <= 0 or float(cache["expire_hours"]) < 0 or int(cache["max_files"]) < 0: raise ValueError("emotion/cache 配置非法")
@@ -158,7 +159,7 @@ class PluginConfig:
         validate_entries(e["vector_entries"], vector=True)
         root = data_dir or Path("data/plugins_data/astrbot_plugin_indextts2")
         root.mkdir(parents=True, exist_ok=True)
-        return cls(bool(cfg["enabled"]), ClientConfig(str(c["base_url"]).rstrip("/"), str(c["api_key"]), float(c["connect_timeout"]), float(c["request_timeout"]), int(c["max_response_mb"]) * 1024 * 1024), TTSConfig(str(t["speaker_audio"]).strip(), lang, float(t["default_emotion_weight"]), float(t["duration_factor"]), int(t["max_text_length"])), AutoConfig(bool(a["enabled"]), bool(a["only_llm_result"]), float(a["tts_probability"]), int(a["max_text_length"]), bool(a["strip_markdown"])), EmotionConfig(str(e["selection_mode"]), str(e["provider_id"]), float(e["judge_timeout"]), bool(e["fallback_to_keyword"]), list(e["entries"]), control_mode, list(e["vector_entries"])), CacheConfig(bool(cache["enabled"]), float(cache["expire_hours"]), str(cache["path"]), int(cache["max_files"]), str(cache["namespace"])), ToolConfig(bool(tool["enabled"]), bool(tool["allow_language_argument"])), root)
+        return cls(bool(cfg["enabled"]), ClientConfig(str(c["base_url"]).rstrip("/"), str(c["api_key"]), float(c["connect_timeout"]), float(c["request_timeout"]), int(c["max_response_mb"]) * 1024 * 1024), TTSConfig(str(t["speaker_audio"]).strip(), lang, float(t["default_emotion_weight"]), float(t["duration_factor"]), int(t["max_text_length"])), AutoConfig(bool(a["enabled"]), bool(a["only_llm_result"]), float(a["tts_probability"]), int(a["min_text_length"]), int(a["max_text_length"]), bool(a["strip_markdown"])), EmotionConfig(str(e["selection_mode"]), str(e["provider_id"]), float(e["judge_timeout"]), bool(e["fallback_to_keyword"]), list(e["entries"]), control_mode, list(e["vector_entries"])), CacheConfig(bool(cache["enabled"]), float(cache["expire_hours"]), str(cache["path"]), int(cache["max_files"]), str(cache["namespace"])), ToolConfig(bool(tool["enabled"]), bool(tool["allow_language_argument"])), root)
 
     @property
     def audio_dir(self) -> Path:

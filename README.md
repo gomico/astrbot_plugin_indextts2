@@ -133,7 +133,7 @@ emotion:
 
 空格分隔的旧多参数写法不再支持。命令别名为 `itts` 和 `itts_emo`，其他命令为 `TTS情绪`、`TTS状态`。
 
-自动模式只替换完全由 Plain 文本组成的 LLM 回复。概率、长度和文本适读性在调用情感模型之前检查；失败时保留原文本。关键词命中按配置条目顺序优先。`selection_mode=llm` 时要求模型严格返回一个已配置的 JSON 标签，失败后可按 `fallback_to_keyword` 回退。
+自动模式只替换完全由 Plain 文本组成的 LLM 回复。文本长度需在 `auto.min_text_length`（默认 `5`）到 `auto.max_text_length` 之间，之后才进行概率触发和情感判断；失败时保留原文本。关键词命中按配置条目顺序优先。`selection_mode=llm` 时要求模型严格返回一个已配置的 JSON 标签，失败后可按 `fallback_to_keyword` 回退。
 
 两个 Tool 为 `indextts_list_emotions()` 和 `indextts_tts(message, emotion, language)`。后者始终要求有效 `emotion`，缺失或无效时不会请求 API 或读写缓存。
 
