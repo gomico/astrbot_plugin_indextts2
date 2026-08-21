@@ -8,10 +8,11 @@ from typing import Any, AsyncGenerator, Mapping
 from .core.client import IndexTTSClient, TTSResult
 from .core.config import LANGUAGES, PluginConfig, migrate_template_keys
 from .core.emotion import EmotionJudger, _get_extra, _set_extra
-from .core.entry import EntryManager
+from .core.entry import EmotionEntry, EntryManager
 from .core.local_data import LocalDataManager
 from .core.runtime import Context, Record, Star, filter, logger, register
 from .core.service import IndexTTSService
+from .core.stats import EmotionOrigin, EmotionStats
 from .core.text import clean_text, plain_chain_text
 
 _SENT_KEY = "indextts2_audio_sent"
@@ -20,7 +21,7 @@ _SENT_KEY = "indextts2_audio_sent"
     "astrbot_plugin_indextts2",
     "gomico",
     "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
-    "1.2.0",
+    "1.3.0",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
@@ -39,6 +40,7 @@ class IndexTTSPlugin(Star):
         self.cache = LocalDataManager(self.cfg.cache, self.cfg.audio_dir)
         self.service = IndexTTSService(self.cfg, self.client, self.cache)
         self.judger = EmotionJudger(context, self.cfg.emotion, self.entries)
+        self.emotion_stats = EmotionStats(data_dir / "emotion_stats.json")
 
     @staticmethod
     def _data_dir() -> Path:
@@ -68,6 +70,18 @@ class IndexTTSPlugin(Star):
 
     async def _automatic_emotion(self, event: Any, text: str):
         return await self.judger.select(event, text)
+
+    async def _synthesize(
+        self,
+        text: str,
+        *,
+        emotion: EmotionEntry | None,
+        origin: EmotionOrigin,
+        language: str = "",
+        max_length: int | None = None,
+    ) -> TTSResult:
+        self.emotion_stats.record(origin, emotion.name if emotion else None)
+        return await self.service.synthesize(text, emotion=emotion, language=language, max_length=max_length)
 
     def _language_error(self, language: str) -> str:
         allowed = "/".join(sorted(LANGUAGES))
@@ -99,7 +113,7 @@ class IndexTTSPlugin(Star):
             yield event.plain_result("用法：说 <文本> 或 说 <语言>&&<文本>"); return
         if not text:
             yield event.plain_result("用法：说 <文本> 或 说 <语言>&&<文本>"); return
-        result = await self.service.synthesize(text, emotion=emotion, language=language)
+        result = await self._synthesize(text, emotion=emotion, origin="auto", language=language)
         if not result: yield event.plain_result(result.error); return
         yield event.chain_result([self._record(result)])
 
@@ -125,13 +139,18 @@ class IndexTTSPlugin(Star):
             yield event.plain_result(self._emotion_help("情感不存在")); return
         if language is None:
             language = await self.judger.detect_language(event, text) or self.cfg.tts.default_language
-        result = await self.service.synthesize(text, emotion=emotion, language=language)
+        result = await self._synthesize(text, emotion=emotion, origin="command", language=language)
         if not result: yield event.plain_result(result.error); return
         yield event.chain_result([self._record(result)])
 
     @filter.command("TTS情绪")
     async def list_emotions(self, event: Any) -> AsyncGenerator[Any, None]:
         yield event.plain_result("可用情感：" + ("、".join(self.entries.get_names()) or "（未配置）"))
+
+    @filter.command("TTS统计")
+    async def emotion_stats_command(self, event: Any) -> AsyncGenerator[Any, None]:
+        day = self._command_text(event) or None
+        yield event.plain_result(self.emotion_stats.summary(day))
 
     @filter.command("TTS状态")
     async def status(self, event: Any) -> AsyncGenerator[Any, None]:
@@ -150,7 +169,7 @@ class IndexTTSPlugin(Star):
         if not text or len(text) < self.cfg.auto.min_text_length or len(text) > self.cfg.auto.max_text_length: return
         if random.random() > self.cfg.auto.tts_probability: return
         emotion = await self._automatic_emotion(event, text)
-        synthesized = await self.service.synthesize(text, emotion=emotion, max_length=self.cfg.auto.max_text_length)
+        synthesized = await self._synthesize(text, emotion=emotion, origin="auto", max_length=self.cfg.auto.max_text_length)
         if not synthesized: return
         # Do not mutate the original reply before a valid record exists.
         record = self._record(synthesized)
@@ -184,7 +203,7 @@ class IndexTTSPlugin(Star):
         entry = self.entries.get_entry(emotion)
         if not entry: return self._emotion_help("未指定 emotion" if not (emotion or "").strip() else "emotion 无效")
         if language and not self.cfg.tool.allow_language_argument: return "当前配置不允许 Tool 指定 language"
-        result = await self.service.synthesize(message, emotion=entry, language=language)
+        result = await self._synthesize(message, emotion=entry, origin="bot", language=language)
         if not result: return result.error
         try:
             await event.send(event.chain_result([self._record(result)]))

@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -47,6 +48,15 @@ def capture_synthesis(plugin):
     return calls
 
 class PluginTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self._data_dir = tempfile.TemporaryDirectory()
+        self._data_dir_patch = patch.object(IndexTTSPlugin, "_data_dir", return_value=Path(self._data_dir.name))
+        self._data_dir_patch.start()
+
+    def tearDown(self):
+        self._data_dir_patch.stop()
+        self._data_dir.cleanup()
+
     async def test_manual_commands_and_tool_ignore_auto_minimum(self):
         context = Context('{"emotion":"开心"}')
         plugin = IndexTTSPlugin(context, {})
@@ -59,6 +69,9 @@ class PluginTests(unittest.IsolatedAsyncioTestCase):
         tool_result = await plugin.indextts_tts(Event(), "hi", "开心")
         self.assertEqual(tool_result, "语音已发送")
         self.assertEqual([call[0] for call in calls], ["好", "hi", "hi"])
+        self.assertEqual(plugin.emotion_stats.totals()["开心"], {"auto": 1, "command": 1, "bot": 1})
+        stats = await collect(plugin.emotion_stats_command(Event("/TTS统计")))
+        self.assertIn("开心: 3", stats[0])
 
     async def test_auto_tts_skips_text_shorter_than_minimum(self):
         context = Context()

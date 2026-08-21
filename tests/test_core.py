@@ -8,6 +8,7 @@ import tempfile
 import time
 import unittest
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -18,6 +19,7 @@ from astrbot_plugin_indextts2.core.emotion import EmotionJudger
 from astrbot_plugin_indextts2.core.entry import EntryManager
 from astrbot_plugin_indextts2.core.local_data import LocalDataManager
 from astrbot_plugin_indextts2.core.service import IndexTTSService
+from astrbot_plugin_indextts2.core.stats import EmotionStats
 from astrbot_plugin_indextts2.core.text import clean_text, plain_chain_text
 
 def config(data_dir: Path) -> PluginConfig:
@@ -201,6 +203,31 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         # Covered by service-level short circuit: invalid tool emotion must not call it.
         with tempfile.TemporaryDirectory() as tmp:
             cfg = config(Path(tmp)); self.assertIsNone(EntryManager(cfg.emotion).get_entry("不存在"))
+
+
+class EmotionStatsTests(unittest.TestCase):
+    def test_record_merges_and_aggregates_by_day(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            current_day = [date(2026, 8, 22)]
+            path = Path(tmp) / "emotion_stats.json"
+            stats = EmotionStats(path, today=lambda: current_day[0])
+            stats.record("bot", "开心")
+            stats.record("bot", "开心")
+            stats.record("auto", None)
+            current_day[0] = date(2026, 8, 23)
+            stats.record("command", "开心")
+
+            self.assertEqual(stats.daily("2026-08-22"), {"开心": {"bot": 2}, "none": {"auto": 1}})
+            self.assertEqual(stats.totals(), {"开心": {"bot": 2, "command": 1}, "none": {"auto": 1}})
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {
+                "2026-08-22": {"开心": {"bot": 2}, "none": {"auto": 1}},
+                "2026-08-23": {"开心": {"command": 1}},
+            })
+
+            reopened = EmotionStats(path, today=lambda: date(2026, 8, 23))
+            reopened.record("command", "开心")
+            self.assertEqual(reopened.totals()["开心"], {"bot": 2, "command": 2})
+            self.assertEqual(reopened.path, path)
 
 class TextTests(unittest.TestCase):
     def test_plain_and_markdown(self):
