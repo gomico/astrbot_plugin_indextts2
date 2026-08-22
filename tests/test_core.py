@@ -231,8 +231,14 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             cfg = PluginConfig.from_mapping({"phonetic": {"entries": [{"char": "昴", "language": "ZH", "phonetic": "MAO3"}]}}, data_dir=Path(tmp))
             client = Client()
             service = IndexTTSService(cfg, client, LocalDataManager(cfg.cache, cfg.audio_dir))
-            self.assertTrue(await service.synthesize("今天见到昴"))
+            first = await service.synthesize(" 今天见到昴 ")
+            self.assertTrue(first)
+            self.assertEqual(first.text, "今天见到昴")
             self.assertEqual(client.payloads[0]["text"], "今天见到<昴|MAO3>")
+            cached = await service.synthesize(" 今天见到昴 ")
+            self.assertTrue(cached)
+            self.assertEqual(cached.text, "今天见到昴")
+            self.assertEqual(len(client.payloads), 1)
 
     async def test_tool_emotion_contract(self):
         # Covered by service-level short circuit: invalid tool emotion must not call it.

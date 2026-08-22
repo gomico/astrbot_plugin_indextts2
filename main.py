@@ -22,7 +22,7 @@ _ORIGIN_LABELS: dict[str, str] = {"bot": "Bot", "command": "命令", "auto": "�
     "astrbot_plugin_indextts2",
     "gomico",
     "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
-    "1.4.0",
+    "1.4.1",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
@@ -63,11 +63,26 @@ class IndexTTSPlugin(Star):
 
     @staticmethod
     def _record(result: TTSResult) -> Any:
+        spoken = (result.text or "").strip()
+
+        def _set_spoken(comp: Any) -> Any:
+            try:
+                if hasattr(comp, "text") and not getattr(comp, "text", None):
+                    comp.text = spoken
+            except Exception:
+                pass
+            for attr in ("_private_companion_tts_source_text", "_private_companion_tts_spoken_text"):
+                try:
+                    object.__setattr__(comp, attr, spoken)
+                except Exception:
+                    pass
+            return comp
+
         if result.file_path:
-            try: return Record.fromFileSystem(result.file_path)
+            try: return _set_spoken(Record.fromFileSystem(result.file_path))
             except Exception: logger.warning("缓存语音无法以文件形式发送，使用内存数据")
         if not result.data: raise ValueError("没有可发送的音频")
-        return Record.fromBase64(base64.urlsafe_b64encode(result.data).decode("ascii"))
+        return _set_spoken(Record.fromBase64(base64.urlsafe_b64encode(result.data).decode("ascii")))
 
     async def _automatic_emotion(self, event: Any, text: str):
         return await self.judger.select(event, text)

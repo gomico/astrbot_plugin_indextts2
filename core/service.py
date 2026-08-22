@@ -18,6 +18,7 @@ class IndexTTSService:
         if not self.cfg.tts.speaker_audio: return TTSResult(False, error="未配置 speaker_audio", error_code="configuration")
         language = (language or self.cfg.tts.default_language).upper()
         if language not in LANGUAGES: return TTSResult(False, error="语言必须为 ZH/EN/JA/AR/ES", error_code="invalid_language")
+        spoken_text = text
         text = apply_phonetic(text, language, self.cfg.phonetic.entries)
         payload: dict[str, object] = {"text": text, "speaker_audio": self.cfg.tts.speaker_audio, "language": language, "duration_factor": self.cfg.tts.duration_factor, "emotion_weight": self.cfg.tts.default_emotion_weight}
         if emotion:
@@ -25,9 +26,10 @@ class IndexTTSService:
         cached = self.cache.get(payload)
         if cached:
             path, data = cached
-            return TTSResult(True, data=data, file_path=str(path))
+            return TTSResult(True, data=data, file_path=str(path), text=spoken_text)
         result = await self.client.tts(payload)
         if result.ok and result.data:
             path = self.cache.save(payload, result.data)
             if path: result.file_path = str(path)
+        result.text = spoken_text
         return result

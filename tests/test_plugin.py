@@ -57,6 +57,11 @@ class PluginTests(unittest.IsolatedAsyncioTestCase):
         self._data_dir_patch.stop()
         self._data_dir.cleanup()
 
+    def test_record_attaches_spoken_text_to_fallback_record(self):
+        record = IndexTTSPlugin._record(TTSResult(True, b"RIFFxxxxWAVE", text="  朗读文本  "))
+        self.assertEqual(record._private_companion_tts_source_text, "朗读文本")
+        self.assertEqual(record._private_companion_tts_spoken_text, "朗读文本")
+
     async def test_manual_commands_and_tool_ignore_auto_minimum(self):
         context = Context('{"emotion":"开心"}')
         plugin = IndexTTSPlugin(context, {})

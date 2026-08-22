@@ -22,6 +22,7 @@ class TTSResult:
     status: int | None = None
     request_id: str = ""
     file_path: str = ""
+    text: str = ""
     def __bool__(self) -> bool: return self.ok and bool(self.data or self.file_path)
 
 class IndexTTSClient:
