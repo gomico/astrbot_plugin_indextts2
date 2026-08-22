@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from .runtime import logger
 
 LANGUAGES = {"ZH", "EN", "JA", "AR", "ES"}
+PHONETIC_LANGUAGES = {"ZH", "EN", "JA"}
 EMOTION_VECTOR_DIMENSIONS = (
     "happy", "angry", "sad", "afraid",
     "disgusted", "melancholic", "surprised", "calm",
@@ -37,6 +38,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "cache": {"enabled": True, "expire_hours": 24, "path": "", "max_files": 500, "namespace": "v1"},
     "tool": {"enabled": True, "allow_language_argument": True},
+    "phonetic": {"entries": []},
 }
 
 def _merge(default: dict[str, Any], supplied: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -92,6 +94,37 @@ class CacheConfig:
 class ToolConfig:
     enabled: bool; allow_language_argument: bool
 
+@dataclass(frozen=True)
+class PhoneticConfig:
+    entries: list[dict[str, str]]
+
+    @classmethod
+    def from_entries(cls, entries: Any) -> "PhoneticConfig":
+        if not isinstance(entries, list):
+            raise ValueError("注音条目必须是列表")
+        parsed: list[dict[str, str]] = []
+        seen: set[tuple[str, str]] = set()
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                raise ValueError("注音条目必须是对象")
+            char = str(entry.get("char", "")).strip()
+            language = str(entry.get("language", "")).strip().upper()
+            phonetic = str(entry.get("phonetic", "")).strip()
+            if not char:
+                raise ValueError("注音条目 char 不能为空")
+            if language not in PHONETIC_LANGUAGES:
+                raise ValueError("注音条目 language 非法")
+            if not phonetic:
+                raise ValueError("注音条目 phonetic 不能为空")
+            if any(mark in char or mark in phonetic for mark in ("<", ">")) or "|" in char:
+                raise ValueError("注音条目不能包含标签分隔符")
+            key = (char, language)
+            if key in seen:
+                raise ValueError("同一语言下注音条目 char 不能重复")
+            seen.add(key)
+            parsed.append({"char": char, "language": language, "phonetic": phonetic})
+        return cls(parsed)
+
 @dataclass
 class PluginConfig:
     enabled: bool
@@ -101,12 +134,13 @@ class PluginConfig:
     emotion: EmotionConfig
     cache: CacheConfig
     tool: ToolConfig
+    phonetic: PhoneticConfig
     data_dir: Path = field(default_factory=lambda: Path("data/plugins_data/astrbot_plugin_indextts2"))
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any] | None, *, data_dir: Path | None = None) -> "PluginConfig":
         cfg = _merge(DEFAULTS, raw)
-        c, t, a, e, cache, tool = (cfg[x] for x in ("client", "tts", "auto", "emotion", "cache", "tool"))
+        c, t, a, e, cache, tool, phonetic = (cfg[x] for x in ("client", "tts", "auto", "emotion", "cache", "tool", "phonetic"))
         parsed = urlparse(str(c["base_url"]).strip())
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("client.base_url 必须是 http(s) URL")
@@ -159,7 +193,7 @@ class PluginConfig:
         validate_entries(e["vector_entries"], vector=True)
         root = data_dir or Path("data/plugins_data/astrbot_plugin_indextts2")
         root.mkdir(parents=True, exist_ok=True)
-        return cls(bool(cfg["enabled"]), ClientConfig(str(c["base_url"]).rstrip("/"), str(c["api_key"]), float(c["connect_timeout"]), float(c["request_timeout"]), int(c["max_response_mb"]) * 1024 * 1024), TTSConfig(str(t["speaker_audio"]).strip(), lang, float(t["default_emotion_weight"]), float(t["duration_factor"]), int(t["max_text_length"])), AutoConfig(bool(a["enabled"]), bool(a["only_llm_result"]), float(a["tts_probability"]), int(a["min_text_length"]), int(a["max_text_length"]), bool(a["strip_markdown"])), EmotionConfig(str(e["selection_mode"]), str(e["provider_id"]), float(e["judge_timeout"]), bool(e["fallback_to_keyword"]), list(e["entries"]), control_mode, list(e["vector_entries"])), CacheConfig(bool(cache["enabled"]), float(cache["expire_hours"]), str(cache["path"]), int(cache["max_files"]), str(cache["namespace"])), ToolConfig(bool(tool["enabled"]), bool(tool["allow_language_argument"])), root)
+        return cls(bool(cfg["enabled"]), ClientConfig(str(c["base_url"]).rstrip("/"), str(c["api_key"]), float(c["connect_timeout"]), float(c["request_timeout"]), int(c["max_response_mb"]) * 1024 * 1024), TTSConfig(str(t["speaker_audio"]).strip(), lang, float(t["default_emotion_weight"]), float(t["duration_factor"]), int(t["max_text_length"])), AutoConfig(bool(a["enabled"]), bool(a["only_llm_result"]), float(a["tts_probability"]), int(a["min_text_length"]), int(a["max_text_length"]), bool(a["strip_markdown"])), EmotionConfig(str(e["selection_mode"]), str(e["provider_id"]), float(e["judge_timeout"]), bool(e["fallback_to_keyword"]), list(e["entries"]), control_mode, list(e["vector_entries"])), CacheConfig(bool(cache["enabled"]), float(cache["expire_hours"]), str(cache["path"]), int(cache["max_files"]), str(cache["namespace"])), ToolConfig(bool(tool["enabled"]), bool(tool["allow_language_argument"])), PhoneticConfig.from_entries(phonetic["entries"]), root)
 
     @property
     def audio_dir(self) -> Path:

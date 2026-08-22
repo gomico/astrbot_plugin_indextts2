@@ -20,7 +20,7 @@ from astrbot_plugin_indextts2.core.entry import EntryManager
 from astrbot_plugin_indextts2.core.local_data import LocalDataManager
 from astrbot_plugin_indextts2.core.service import IndexTTSService
 from astrbot_plugin_indextts2.core.stats import EmotionStats
-from astrbot_plugin_indextts2.core.text import clean_text, plain_chain_text
+from astrbot_plugin_indextts2.core.text import apply_phonetic, clean_text, plain_chain_text
 
 def config(data_dir: Path) -> PluginConfig:
     return PluginConfig.from_mapping({"tts": {"speaker_audio": "voices/neutral.wav"}, "emotion": {"entries": [
@@ -45,6 +45,25 @@ class Client:
     async def tts(self, payload): self.payloads.append(payload); return TTSResult(True, b"RIFFxxxxWAVE")
 
 class CoreTests(unittest.IsolatedAsyncioTestCase):
+    def test_apply_phonetic_zh_replace(self):
+        self.assertEqual(apply_phonetic("今天见到昴", "ZH", [{"char": "昴", "language": "ZH", "phonetic": "MAO3"}]), "今天见到<昴|MAO3>")
+
+    def test_apply_phonetic_language_mismatch_noop(self):
+        self.assertEqual(apply_phonetic("今天见到昴", "EN", [{"char": "昴", "language": "ZH", "phonetic": "MAO3"}]), "今天见到昴")
+
+    def test_apply_phonetic_empty_entries_noop(self):
+        self.assertEqual(apply_phonetic("今天见到昴", "ZH", []), "今天见到昴")
+
+    def test_apply_phonetic_skip_already_tagged(self):
+        self.assertEqual(apply_phonetic("遇到<昴|MAO3>时", "ZH", [{"char": "昴", "language": "ZH", "phonetic": "MAO3"}]), "遇到<昴|MAO3>时")
+
+    def test_apply_phonetic_multi_char(self):
+        self.assertEqual(apply_phonetic("料理が上手だが", "JA", [{"char": "上手", "language": "JA", "phonetic": "じょうず"}]), "料理が<上手|じょうず>だが")
+
+    def test_apply_phonetic_longest_match(self):
+        entries = [{"char": "上", "language": "JA", "phonetic": "うえ"}, {"char": "上手", "language": "JA", "phonetic": "じょうず"}]
+        self.assertEqual(apply_phonetic("料理が上手", "JA", entries), "料理が<上手|じょうず>")
+
     def test_migrate_legacy_template_keys(self):
         config = {"emotion": {"entries": [{"name": "开心"}], "vector_entries": [{"name": "平静"}, {"__template_key": "default"}]}}
         self.assertTrue(migrate_template_keys(config))
@@ -198,6 +217,22 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
                 PluginConfig.from_mapping({"emotion": {"control_mode": "bad"}}, data_dir=Path(tmp))
             with self.assertRaises(ValueError):
                 PluginConfig.from_mapping({"emotion": {"vector_entries": [{"name": "坏", "happy": 2}]}}, data_dir=Path(tmp))
+            with self.assertRaises(ValueError):
+                PluginConfig.from_mapping({"phonetic": {"entries": [{"char": "昴", "language": "XX", "phonetic": "MAO3"}]}}, data_dir=Path(tmp))
+            with self.assertRaises(ValueError):
+                PluginConfig.from_mapping({"phonetic": {"entries": [{"char": "昴", "language": "AR", "phonetic": "MAO3"}]}}, data_dir=Path(tmp))
+
+    def test_config_phonetic_default_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(PluginConfig.from_mapping(None, data_dir=Path(tmp)).phonetic.entries, [])
+
+    async def test_service_applies_phonetic_to_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = PluginConfig.from_mapping({"phonetic": {"entries": [{"char": "昴", "language": "ZH", "phonetic": "MAO3"}]}}, data_dir=Path(tmp))
+            client = Client()
+            service = IndexTTSService(cfg, client, LocalDataManager(cfg.cache, cfg.audio_dir))
+            self.assertTrue(await service.synthesize("今天见到昴"))
+            self.assertEqual(client.payloads[0]["text"], "今天见到<昴|MAO3>")
 
     async def test_tool_emotion_contract(self):
         # Covered by service-level short circuit: invalid tool emotion must not call it.

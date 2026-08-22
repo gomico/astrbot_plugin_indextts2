@@ -4,6 +4,7 @@ from .client import IndexTTSClient, TTSResult
 from .config import LANGUAGES, PluginConfig
 from .entry import EmotionEntry
 from .local_data import LocalDataManager
+from .text import apply_phonetic
 
 class IndexTTSService:
     def __init__(self, cfg: PluginConfig, client: IndexTTSClient, cache: LocalDataManager):
@@ -17,6 +18,7 @@ class IndexTTSService:
         if not self.cfg.tts.speaker_audio: return TTSResult(False, error="未配置 speaker_audio", error_code="configuration")
         language = (language or self.cfg.tts.default_language).upper()
         if language not in LANGUAGES: return TTSResult(False, error="语言必须为 ZH/EN/JA/AR/ES", error_code="invalid_language")
+        text = apply_phonetic(text, language, self.cfg.phonetic.entries)
         payload: dict[str, object] = {"text": text, "speaker_audio": self.cfg.tts.speaker_audio, "language": language, "duration_factor": self.cfg.tts.duration_factor, "emotion_weight": self.cfg.tts.default_emotion_weight}
         if emotion:
             payload.update(emotion.to_params())

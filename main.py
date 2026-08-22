@@ -22,7 +22,7 @@ _ORIGIN_LABELS: dict[str, str] = {"bot": "Bot", "command": "命令", "auto": "�
     "astrbot_plugin_indextts2",
     "gomico",
     "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
-    "1.3.1",
+    "1.4.0",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):

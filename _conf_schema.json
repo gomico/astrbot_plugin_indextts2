@@ -65,5 +65,12 @@
   "tool": {"description": "LLM Tool", "type": "object", "items": {
     "enabled": {"description": "启用 Tool", "type": "bool", "default": true},
     "allow_language_argument": {"description": "允许语言参数", "type": "bool", "default": true}
+  }},
+  "phonetic": {"description": "注音替换（IndexTTS 多音字/生僻字）", "type": "object", "items": {
+    "entries": {"description": "注音替换条目: 字 | 语言 | 注音", "type": "template_list", "default": [], "templates": {"default": {"name": "注音替换", "items": {
+      "char": {"description": "字符/词（需注音的汉字或词）", "type": "string", "default": ""},
+      "language": {"description": "生效语言", "type": "string", "options": ["ZH", "JA", "EN"], "default": "ZH"},
+      "phonetic": {"description": "注音\nZH: 拼音如 MAO3\nJA: 假名如 じょうず\nEN: [音标片段](https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/cmudict-0.7b)", "type": "string", "default": ""}
+    }}}}
   }}
 }
