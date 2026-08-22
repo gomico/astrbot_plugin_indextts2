@@ -23,7 +23,7 @@
     "strip_markdown": {"description": "移除 Markdown", "type": "bool", "default": true}
   }},
   "emotion": {"description": "情感选择", "type": "object", "items": {
-    "control_mode": {"description": "控制模式（参考音频控制 / 向量控制）", "type": "string", "options": ["reference_audio", "vector"], "default": "reference_audio"},
+    "control_mode": {"description": "控制模式", "hint": "参考音频控制 / 向量控制", "type": "string", "options": ["reference_audio", "vector"], "default": "reference_audio"},
     "selection_mode": {"description": "选择方式", "type": "string", "options": ["off", "keyword", "llm"], "default": "llm"},
     "provider_id": {"description": "语言/情感判断 Provider", "type": "string", "default": "", "_special": "select_provider"},
     "judge_timeout": {"description": "语言/情感判断超时（秒）", "type": "float", "default": 20},
@@ -57,20 +57,20 @@
   }},
   "cache": {"description": "本地缓存", "type": "object", "items": {
     "enabled": {"description": "启用", "type": "bool", "default": true},
-    "expire_hours": {"description": "过期小时数（0 为永不过期）", "type": "int", "default": 24},
-    "path": {"description": "缓存路径（留空使用插件数据目录）", "type": "string", "default": ""},
-    "max_files": {"description": "最多文件数（0 为不限）", "type": "int", "default": 500},
+    "expire_hours": {"description": "过期小时数", "hint": "0 为永不过期", "type": "int", "default": 24},
+    "path": {"description": "缓存路径", "hint": "留空使用插件数据目录", "type": "string", "default": ""},
+    "max_files": {"description": "最多文件数", "hint": "0 为不限", "type": "int", "default": 500},
     "namespace": {"description": "缓存命名空间", "type": "string", "default": "v1"}
   }},
   "tool": {"description": "LLM Tool", "type": "object", "items": {
     "enabled": {"description": "启用 Tool", "type": "bool", "default": true},
     "allow_language_argument": {"description": "允许语言参数", "type": "bool", "default": true}
   }},
-  "phonetic": {"description": "注音替换（IndexTTS 多音字/生僻字）", "type": "object", "items": {
+  "phonetic": {"description": "注音替换（多音字/生僻字）", "type": "object", "items": {
     "entries": {"description": "注音替换条目: 字 | 语言 | 注音", "type": "template_list", "default": [], "templates": {"default": {"name": "注音替换", "items": {
       "char": {"description": "字符/词（需注音的汉字或词）", "type": "string", "default": ""},
       "language": {"description": "生效语言", "type": "string", "options": ["ZH", "JA", "EN"], "default": "ZH"},
-      "phonetic": {"description": "注音\nZH: 拼音如 MAO3\nJA: 假名如 じょうず\nEN: [音标片段](https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/cmudict-0.7b)", "type": "string", "default": ""}
+      "phonetic": {"description": "注音", "hint": "ZH: 拼音如 MAO3；JA: 假名如 じょうず；EN: [音标片段](https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/cmudict-0.7b)", "type": "string", "default": ""}
     }}}}
   }}
 }

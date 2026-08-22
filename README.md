@@ -140,12 +140,12 @@ emotion:
 /TTS统计 2026-08-22
 ```
 
-返回格式如下，`bot`、`command`、`auto` 分别表示 LLM Tool、手动命令和自动语音回复来源：
+返回格式如下，`Bot`、`命令`、`自动` 分别表示 LLM Tool、手动命令和自动语音回复来源：
 
 ```text
 情感统计：
-开心: 3（bot:1、command:1、auto:1）
-none: 9（bot:0、command:0、auto:9）
+开心: 3（Bot:1、命令:1、自动:1）
+none: 9（Bot:0、命令:0、自动:9）
 ```
 
 自动模式只替换完全由 Plain 文本组成的 LLM 回复。文本长度需在 `auto.min_text_length`（默认 `5`）到 `auto.max_text_length` 之间，之后才进行概率触发和情感判断；失败时保留原文本。关键词命中按配置条目顺序优先。`selection_mode=llm` 时要求模型严格返回一个已配置的 JSON 标签，失败后可按 `fallback_to_keyword` 回退。
