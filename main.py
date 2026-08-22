@@ -16,12 +16,13 @@ from .core.stats import EmotionOrigin, EmotionStats
 from .core.text import clean_text, plain_chain_text
 
 _SENT_KEY = "indextts2_audio_sent"
+_ORIGIN_LABELS: dict[str, str] = {"bot": "Bot", "command": "命令", "auto": "自动"}
 
 @register(
     "astrbot_plugin_indextts2",
     "gomico",
     "通过 HTTP 调用 IndexTTS 2.5 API，支持情感参考音频、情感向量、自动语音回复和 LLM Tool。",
-    "1.3.0",
+    "1.3.1",
 )
 class IndexTTSPlugin(Star):
     def __init__(self, context: Context, config: Mapping[str, Any]):
@@ -78,8 +79,10 @@ class IndexTTSPlugin(Star):
         emotion: EmotionEntry | None,
         origin: EmotionOrigin,
         language: str = "",
+        language_origin: str = "默认",
         max_length: int | None = None,
     ) -> TTSResult:
+        logger.info("TTS 请求：语言=%s(%s)，情感=%s(%s)", language or self.cfg.tts.default_language, language_origin, emotion.name if emotion else "none", _ORIGIN_LABELS.get(origin, origin))
         self.emotion_stats.record(origin, emotion.name if emotion else None)
         return await self.service.synthesize(text, emotion=emotion, language=language, max_length=max_length)
 
@@ -103,23 +106,25 @@ class IndexTTSPlugin(Star):
         if len(parts) == 1:
             text = parts[0]
             language, emotion = await self.judger.select_with_language(event, text) if text else (None, None)
+            language_origin = "检测" if language else "默认"
             language = language or self.cfg.tts.default_language
         elif len(parts) == 2:
             language, text = parts
             if language not in LANGUAGES:
                 yield event.plain_result(self._language_error(language)); return
+            language_origin = "命令"
             emotion = await self._automatic_emotion(event, text) if text else None
         else:
             yield event.plain_result("用法：说 <文本> 或 说 <语言>&&<文本>"); return
         if not text:
             yield event.plain_result("用法：说 <文本> 或 说 <语言>&&<文本>"); return
-        result = await self._synthesize(text, emotion=emotion, origin="auto", language=language)
+        result = await self._synthesize(text, emotion=emotion, origin="auto", language=language, language_origin=language_origin)
         if not result: yield event.plain_result(result.error); return
         yield event.chain_result([self._record(result)])
 
-    @filter.command("说情绪", alias={"itts_emo"})
+    @filter.command("说情感", alias={"itts_emo", "说情绪"})
     async def say_emotion(self, event: Any) -> AsyncGenerator[Any, None]:
-        """说情绪 <情感>&&<文本> 或 说情绪 <语言>&&<情感>&&<文本>。"""
+        """说情感 <情感>&&<文本> 或 说情感 <语言>&&<情感>&&<文本>。"""
         if not self.cfg.enabled:
             yield event.plain_result("IndexTTS 插件未启用"); return
         parts = [part.strip() for part in self._command_text(event).split("&&")]
@@ -131,19 +136,22 @@ class IndexTTSPlugin(Star):
             if language not in LANGUAGES:
                 yield event.plain_result(self._language_error(language)); return
         else:
-            yield event.plain_result("用法：说情绪 <情感>&&<文本> 或 说情绪 <语言>&&<情感>&&<文本>"); return
+            yield event.plain_result("用法：说情感 <情感>&&<文本> 或 说情感 <语言>&&<情感>&&<文本>"); return
         if not emotion_name or not text:
-            yield event.plain_result("用法：说情绪 <情感>&&<文本> 或 说情绪 <语言>&&<情感>&&<文本>"); return
+            yield event.plain_result("用法：说情感 <情感>&&<文本> 或 说情感 <语言>&&<情感>&&<文本>"); return
         emotion = self.entries.get_entry(emotion_name)
         if not emotion:
             yield event.plain_result(self._emotion_help("情感不存在")); return
         if language is None:
+            language_origin = "检测"
             language = await self.judger.detect_language(event, text) or self.cfg.tts.default_language
-        result = await self._synthesize(text, emotion=emotion, origin="command", language=language)
+        else:
+            language_origin = "命令"
+        result = await self._synthesize(text, emotion=emotion, origin="command", language=language, language_origin=language_origin)
         if not result: yield event.plain_result(result.error); return
         yield event.chain_result([self._record(result)])
 
-    @filter.command("TTS情绪")
+    @filter.command("TTS情感", alias={"TTS情绪"})
     async def list_emotions(self, event: Any) -> AsyncGenerator[Any, None]:
         yield event.plain_result("可用情感：" + ("、".join(self.entries.get_names()) or "（未配置）"))
 
@@ -203,7 +211,8 @@ class IndexTTSPlugin(Star):
         entry = self.entries.get_entry(emotion)
         if not entry: return self._emotion_help("未指定 emotion" if not (emotion or "").strip() else "emotion 无效")
         if language and not self.cfg.tool.allow_language_argument: return "当前配置不允许 Tool 指定 language"
-        result = await self._synthesize(message, emotion=entry, origin="bot", language=language)
+        language_origin = "Bot" if language else "默认"
+        result = await self._synthesize(message, emotion=entry, origin="bot", language=language, language_origin=language_origin)
         if not result: return result.error
         try:
             await event.send(event.chain_result([self._record(result)]))

@@ -89,8 +89,7 @@ class EmotionJudger:
             + text
         )
         try:
-            kwargs: dict[str, Any] = {"prompt": prompt}
-            if self.cfg.provider_id: kwargs["provider_id"] = self.cfg.provider_id
+            kwargs: dict[str, Any] = {"prompt": prompt, "chat_provider_id": self.cfg.provider_id}
             result = await asyncio.wait_for(self.context.llm_generate(**kwargs), timeout=self.cfg.judge_timeout)
             raw = getattr(result, "completion_text", result)
             if not isinstance(raw, str) or not raw.strip():
